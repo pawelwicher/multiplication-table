@@ -2,8 +2,8 @@ import {
   Component,
   DestroyRef,
   ElementRef,
-  afterNextRender,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
@@ -46,6 +46,16 @@ const MAX_FRAME_MS = 100;
 
 const WRONG_FLASH_MS = 220;
 
+/**
+ * Minimalny odstęp między pojawieniami kafelków.
+ *
+ * Pilnuje tylko tego, żeby dwa nie wskoczyły w tej samej klatce — poza tym
+ * trzymamy ekran pełny. Wcześniej odstęp wynosił `czas przelotu / limit`,
+ * czyli 4 s na poziomie 1: po każdej odpowiedzi ekran stał pusty i rytm gry
+ * się rozpadał.
+ */
+const MIN_SPAWN_GAP_MS = 600;
+
 /** Kafelek widziany przez szablon. Zmienia się tylko przy pojawieniu, trafieniu i minięciu linii. */
 interface TileView {
   readonly id: number;
@@ -84,7 +94,24 @@ interface Motion {
   host: { '(document:keydown)': 'onKey($event)' },
   template: `
     <main class="game">
-      <app-hud [lives]="lives()" [score]="score()" [level]="level()" [streak]="streak()" />
+      @if (!store.ready()) {
+        <p class="notice">Wczytuję postępy…</p>
+      } @else if (locked()) {
+        <section class="notice notice--locked">
+          <h2>Arcade jeszcze zamknięte</h2>
+          <p>
+            Wpuszczamy tu tylko działania, które już znasz — presja czasu buduje płynność,
+            ale psuje naukę nowego materiału.
+          </p>
+          <a class="over__again" routerLink="/calm">Poćwicz spokojnie</a>
+          <a class="over__link" routerLink="/">Menu</a>
+        </section>
+      } @else {
+      <div class="play">
+      <div class="topbar">
+        <a class="back" routerLink="/" aria-label="Wróć do menu">‹</a>
+        <app-hud [lives]="lives()" [score]="score()" [level]="level()" [streak]="streak()" />
+      </div>
 
       <section class="field" #field>
         @for (tile of tiles(); track tile.id) {
@@ -111,17 +138,74 @@ interface Motion {
           <p class="over__score">{{ score() }}</p>
           <p class="over__label">punktów · poziom {{ level() }}</p>
           <button type="button" class="over__again" (click)="restart()">Jeszcze raz</button>
-          <a class="over__link" routerLink="/map">Mapa opanowania</a>
+          <a class="over__link" routerLink="/">Menu</a>
         </div>
+      }
+      </div>
       }
     </main>
   `,
   styles: `
     .game {
-      display: grid;
-      grid-template-rows: auto 1fr auto var(--numpad-share);
       position: relative;
       height: 100%;
+    }
+
+    .play {
+      display: grid;
+      grid-template-rows: auto 1fr auto var(--numpad-share);
+      height: 100%;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: stretch;
+      background: var(--bg-sunken);
+    }
+
+    .topbar app-hud {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .back {
+      display: grid;
+      place-items: center;
+      padding: 0 10px 0 14px;
+      border-bottom: 1px solid var(--edge);
+      color: var(--ink-dim);
+      font-size: 1.6rem;
+      line-height: 1;
+      text-decoration: none;
+    }
+
+    .notice {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 28px;
+      color: var(--ink-dim);
+      text-align: center;
+    }
+
+    .notice h2 {
+      margin: 0;
+      color: var(--ink);
+      font-size: 1.35rem;
+    }
+
+    .notice p {
+      max-width: 32ch;
+      margin: 0 0 14px;
+      line-height: 1.55;
+    }
+
+    .notice .over__again {
+      display: inline-block;
+      text-decoration: none;
     }
 
     .field {
@@ -201,7 +285,8 @@ interface Motion {
       gap: 6px;
       align-items: center;
       justify-content: center;
-      background: rgb(7 11 24 / 92%);
+      background: rgb(7 11 24 / 97%);
+      backdrop-filter: blur(3px);
       text-align: center;
     }
 
@@ -240,9 +325,12 @@ interface Motion {
   `,
 })
 export class GameScreen {
-  private readonly store = inject(FactStore);
+  protected readonly store = inject(FactStore);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly field = viewChild.required<ElementRef<HTMLElement>>('field');
+  private readonly field = viewChild<ElementRef<HTMLElement>>('field');
+
+  /** Świeży zbiór nie ma nic o mastery >= 2 — wtedy arcade nie ma czego pokazać. */
+  protected readonly locked = computed(() => this.store.ready() && this.store.arcadeReady() === 0);
 
   // Stan dyskretny — i tylko taki — mieszka w sygnałach.
   protected readonly tiles = signal<readonly TileView[]>([]);
@@ -267,9 +355,18 @@ export class GameScreen {
   private lineY = 0;
   private pendingOver = false;
 
+  private booted = false;
+
   constructor() {
-    afterNextRender(() => {
-      const element = this.field().nativeElement;
+    // Pole gry pojawia się dopiero po wczytaniu bazy i tylko gdy pula nie jest pusta,
+    // więc na start czekamy na element, a nie na pierwszy render.
+    effect(() => {
+      const element = this.field()?.nativeElement;
+      if (element === undefined || this.booted) {
+        return;
+      }
+      this.booted = true;
+
       const observer = new ResizeObserver(() => this.measure(element));
       observer.observe(element);
       this.measure(element);
@@ -382,7 +479,8 @@ export class GameScreen {
 
   /** Jedyne miejsce, w którym cokolwiek rusza się co klatkę. Zapis prosto do stylu elementu. */
   private paint(id: number, motion: Motion): void {
-    motion.el ??= this.field().nativeElement.querySelector<HTMLElement>(`[data-tile="${id}"]`);
+    motion.el ??=
+      this.field()?.nativeElement.querySelector<HTMLElement>(`[data-tile="${id}"]`) ?? null;
     if (motion.el !== null) {
       motion.el.style.transform = `translate3d(${motion.x}px, ${motion.y}px, 0)`;
     }
@@ -427,13 +525,14 @@ export class GameScreen {
       return;
     }
 
-    const flight = flightDurationMs(this.level());
-    if (ts - this.lastSpawnTs < flight / limit) {
+    if (ts - this.lastSpawnTs < MIN_SPAWN_GAP_MS) {
       return;
     }
 
+    const flight = flightDurationMs(this.level());
+
     const onScreen = [...this.motions.values()].map((motion) => motion.fact);
-    const fact = this.store.next(onScreen, this.lastKey);
+    const fact = this.store.nextArcade(onScreen, this.lastKey);
     if (fact === null) {
       return;
     }

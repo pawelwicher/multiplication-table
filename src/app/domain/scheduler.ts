@@ -32,6 +32,11 @@ export interface NextFactQuery {
   readonly onScreen?: readonly Fact[];
   /** Ostatnio pokazany fakt — blokuje swój klucz, żeby nie wypadł dwa razy pod rząd. */
   readonly lastKey?: FactKey | null;
+  /**
+   * Klucze do pominięcia bez blokowania ich wyników. Tryb spokojny trzyma tak
+   * swój zestaw roboczy: te fakty już ma, chce dobrać coś spoza niego.
+   */
+  readonly excludeKeys?: readonly FactKey[];
   /** Zawężenie puli, np. wymóg `mastery >= 2` w arcade. */
   readonly eligible?: (fact: Fact) => boolean;
 }
@@ -55,9 +60,12 @@ export function dueFacts(facts: readonly Fact[], now: number): Fact[] {
  * i wąskiej puli może po prostu nie być czego pokazać.
  */
 export function nextFact(facts: readonly Fact[], query: NextFactQuery): Fact | null {
-  const { now, rng, onScreen = [], lastKey = null, eligible } = query;
+  const { now, rng, onScreen = [], lastKey = null, excludeKeys = [], eligible } = query;
 
   const blockedKeys = new Set<FactKey>(onScreen.map(keyOf));
+  for (const key of excludeKeys) {
+    blockedKeys.add(key);
+  }
   if (lastKey !== null) {
     blockedKeys.add(lastKey);
   }
