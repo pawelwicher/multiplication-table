@@ -181,7 +181,7 @@ describe('allFacts', () => {
     const first = allFacts();
     const target = first[0] as Fact;
     target.box = 5;
-    target.recentTimes.push(1234);
+    target.recentTimes.push({ ms: 1234, noisy: false });
 
     const second = allFacts();
     expect((second[0] as Fact).box).toBe(1);

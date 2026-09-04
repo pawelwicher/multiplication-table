@@ -22,6 +22,19 @@ export const TRIVIAL_FACTORS: readonly number[] = [1, 2, 5, 10];
 /** Ile ostatnich czasów odpowiedzi trzymamy w `Fact.recentTimes`. */
 export const RECENT_TIMES_WINDOW = 5;
 
+/**
+ * Pojedynczy pomiar czasu odpowiedzi.
+ *
+ * Flaga `noisy` musi jechać razem z czasem, bo poziom „zautomatyzowany"
+ * liczy się wyłącznie z pomiarów czystych. Gołe `number[]` nie dałoby
+ * czego odfiltrować.
+ */
+export interface AnswerSample {
+  readonly ms: number;
+  /** `true`, gdy w momencie odpowiedzi na ekranie był więcej niż jeden kafelek. */
+  readonly noisy: boolean;
+}
+
 /** Wszystkich unikalnych faktów `a <= b` w zakresie 1–10. */
 export const TOTAL_FACT_COUNT = 55;
 
@@ -46,8 +59,8 @@ export interface Fact {
   readonly trivial: boolean;
   box: LeitnerBox;
   mastery: Mastery;
-  /** Ostatnie `RECENT_TIMES_WINDOW` czasów odpowiedzi w ms, od najstarszego. */
-  recentTimes: number[];
+  /** Ostatnie `RECENT_TIMES_WINDOW` pomiarów, od najstarszego. Tylko odpowiedzi poprawne. */
+  recentTimes: AnswerSample[];
   /** Timestamp (ms) — fakt jest zaległy, gdy `dueAt <= now`. */
   dueAt: number;
   streak: number;
