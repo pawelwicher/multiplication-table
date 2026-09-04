@@ -1,8 +1,22 @@
 {
   "mcpServers": {
     "angular-cli": {
+      "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@angular/cli", "mcp"]
+      "args": [
+        "ng",
+        "mcp"
+      ],
+      "env": {}
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ],
+      "env": {}
     }
   }
 }
