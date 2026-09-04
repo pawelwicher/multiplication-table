@@ -67,11 +67,11 @@ Gra arcade do nauki tabliczki mnożenia. Statyczna, bez backendu, bez logowania.
 
 ```
 src/app/
-  domain/   czysty TypeScript — model, mastery, scheduler, logika trybów
-  data/     persystencja (IndexedDB)
-  state/    serwisy sygnałowe spinające domain z UI
-  game/     pętla gry, renderer kafelków, numpad, HUD
-  ui/       shell, routing, ekrany poza rozgrywką
+  domain/   czysty TypeScript — model, mastery, scheduler, arcade, calm
+  data/     serializacja i IndexedDB
+  state/    FactStore — jedyne źródło prawdy o postępach
+  game/     pętla gry, kafelki, numpad, HUD, tryb spokojny
+  ui/       menu, mapa
 ```
 
 **Twarda zasada: `domain/` nie wie nic o Angularze.** Zero importów z `@angular/*`,
@@ -85,13 +85,37 @@ RxJS tylko tam, gdzie sygnał naprawdę nie wystarczy.
 
 ### Testy
 
-Vitest, wyłącznie dla `domain/`, pisane razem z kodem. `npm run test:domain`.
+Vitest dla `domain/` i dla czystej serializacji w `data/` — pisane razem z kodem.
+Komponentów nie testujemy jednostkowo; od tego jest `npm run check:browser`,
+który przechodzi całą ścieżkę w prawdziwym Chrome przez CDP.
+
+```bash
+npm run test:domain    # sama domena, ~0,7 s
+npm run test:run       # cały zestaw jednostkowy
+npm run check:browser  # end-to-end w przeglądarce
+```
+
+Po każdej zmianie w `game/` albo `ui/` uruchom `check:browser` — pętla gry
+i persystencja nie mają innego zabezpieczenia.
 
 ### Wydajność pętli gry
 
 Nie aktualizuj sygnałów co klatkę. Pozycje kafelków to zwykłe obiekty zapisywane
 prosto do `element.style.transform` w jednym `requestAnimationFrame`.
 Sygnały trzymają wyłącznie stan dyskretny: wynik, życia, poziom, seria, bufor wejścia.
+
+Szablon nie może bindować `transform` kafelka. Gdyby bindował, każde odświeżenie
+widoku (pojawienie się innego kafelka, zmiana wyniku) cofałoby kafelek do pozycji
+startowej. Pozycję ustawia wyłącznie pętla.
+
+### Dwie pułapki, które już nas ugryzły
+
+`requestAnimationFrame` na końcu klatki wskrzesza pętlę po jej zatrzymaniu —
+przed ponownym zaplanowaniem klatki sprawdź, czy gra jeszcze trwa.
+
+Prędkość kafelka zależy od wysokości pola, która zmienia się przy obrocie ekranu.
+Trzymaj `flightMs` i `speedFactor` osobno i przeliczaj `speed`, zamiast zapisywać
+gotową prędkość raz przy pojawieniu.
 
 ### Uwaga o npm
 

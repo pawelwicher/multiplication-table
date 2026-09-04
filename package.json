@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:run": "ng test --watch=false",
-    "test:domain": "ng test --watch=false --include=src/app/domain"
+    "test:domain": "ng test --watch=false --include=src/app/domain",
+    "check:browser": "node tools/browser-check/check.mjs"
   },
   "private": true,
   "packageManager": "npm@11.19.1",
