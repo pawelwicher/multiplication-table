@@ -1,9 +1,10 @@
 import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+
+import { PracticeScreen } from './game/practice-screen';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
-  template: '<router-outlet />',
+  imports: [PracticeScreen],
+  template: '<app-practice-screen />',
 })
 export class App {}

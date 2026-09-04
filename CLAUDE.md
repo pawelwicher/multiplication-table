@@ -61,18 +61,20 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 
 ## Zasady tego projektu
 
-Gra arcade do nauki tabliczki mnożenia. Statyczna, bez backendu, bez logowania.
+Nauka tabliczki mnożenia dla dziecka. Jeden ekran, statyczna, bez backendu,
+bez logowania. Dziewięć progów trudności — próg to zakres wyniku działania.
 
 ### Architektura
 
 ```
 src/app/
-  domain/   czysty TypeScript — model, mastery, scheduler, arcade, calm
-  data/     serializacja i IndexedDB
+  domain/   czysty TypeScript — model, mastery, scheduler, trudność, sesja
+  data/     serializacja, IndexedDB, preferencje
   state/    FactStore — jedyne źródło prawdy o postępach
-  game/     pętla gry, kafelki, numpad, HUD, tryb spokojny
-  ui/       menu, mapa
+  game/     ekran ćwiczenia i numpad
 ```
+
+Jeden ekran, więc bez routera. Nie dokładaj tras ani ekranów bez wyraźnej prośby.
 
 **Twarda zasada: `domain/` nie wie nic o Angularze.** Zero importów z `@angular/*`,
 zero DOM, zero I/O, zero `Date.now()` — czas wpływa z zewnątrz jako argument.
@@ -98,24 +100,21 @@ npm run check:browser  # end-to-end w przeglądarce
 Po każdej zmianie w `game/` albo `ui/` uruchom `check:browser` — pętla gry
 i persystencja nie mają innego zabezpieczenia.
 
-### Wydajność pętli gry
+### Dobór pytań — dwie rzeczy, bez których to nie działa
 
-Nie aktualizuj sygnałów co klatkę. Pozycje kafelków to zwykłe obiekty zapisywane
-prosto do `element.style.transform` w jednym `requestAnimationFrame`.
-Sygnały trzymają wyłącznie stan dyskretny: wynik, życia, poziom, seria, bufor wejścia.
+Zestaw roboczy krąży niezależnie od kolejki Leitnera. Poprawna odpowiedź wysyła
+działanie do pudełka 2, czyli o dziesięć minut, a sesja trwa kilka minut — bez
+zestawu żadne działanie nie zrobiłoby serii dwóch trafień i nigdy nie awansowało.
 
-Szablon nie może bindować `transform` kafelka. Gdyby bindował, każde odświeżenie
-widoku (pojawienie się innego kafelka, zmiana wyniku) cofałoby kafelek do pozycji
-startowej. Pozycję ustawia wyłącznie pętla.
+Karencja pilnuje, żeby pytanie nie wróciło przed upływem kilku innych. Sam zakaz
+powtórki „dwa razy pod rząd" za mało rozrzuca pytania i sesja robi się nużąca.
+Zestaw roboczy musi być większy od karencji.
 
-### Dwie pułapki, które już nas ugryzły
+### Pułapka układu
 
-`requestAnimationFrame` na końcu klatki wskrzesza pętlę po jej zatrzymaniu —
-przed ponownym zaplanowaniem klatki sprawdź, czy gra jeszcze trwa.
-
-Prędkość kafelka zależy od wysokości pola, która zmienia się przy obrocie ekranu.
-Trzymaj `flightMs` i `speedFactor` osobno i przeliczaj `speed`, zamiast zapisywać
-gotową prędkość raz przy pojawieniu.
+Wiersz szerszy od ekranu (np. zawijane chipy) rozpycha siatkę CSS, bo elementy
+siatki mają domyślnie `min-width: auto`. Ekran ma `grid-template-columns: minmax(0, 1fr)` —
+nie usuwaj tego, bo numpad wyjedzie poza widok.
 
 ### Uwaga o npm
 

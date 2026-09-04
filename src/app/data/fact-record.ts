@@ -8,7 +8,6 @@
  */
 
 import {
-  MAX_FACTOR,
   RECENT_TIMES_WINDOW,
   allFacts,
   createFact,
@@ -32,7 +31,7 @@ export interface FactRecord {
   readonly lapses: number;
 }
 
-/** `trivial`, `a` i `b` wynikają z klucza — zapisywanie ich byłoby zapraszaniem rozjazdu. */
+/** `a` i `b` wynikają z klucza — zapisywanie ich byłoby zapraszaniem rozjazdu. */
 export function toRecord(fact: Fact): FactRecord {
   return {
     key: keyOf(fact),
@@ -126,6 +125,3 @@ export function mergeRecords(records: readonly unknown[]): Fact[] {
   }
   return allFacts().map((fresh) => restored.get(keyOf(fresh)) ?? fresh);
 }
-
-/** Ile faktów mieści się w pełnym zbiorze — do sanity checków w testach. */
-export const GRID_SIZE = MAX_FACTOR;

@@ -39,8 +39,8 @@ export const FLUENT_MIN_STREAK = 3;
 /** Tylu pomiarów wymagamy, zanim mediana zacznie cokolwiek znaczyć. */
 export const MIN_SAMPLES = 3;
 
-/** Od tego poziomu fakt wpuszczamy do arcade — presja czasu nie służy nauce nowego materiału. */
-export const ARCADE_MIN_MASTERY: Mastery = 2;
+/** Od tego poziomu uznajemy działanie za znane i wypuszczamy je z zestawu roboczego. */
+export const GRADUATION_MASTERY: Mastery = 2;
 
 /**
  * Mediana, nie średnia — jeden przypadkowy zawis nie może przekreślić serii
@@ -122,11 +122,6 @@ export function isDue(fact: Fact, now: number): boolean {
   return fact.dueAt <= now;
 }
 
-/** Czy fakt wolno wpuścić do arcade. */
-export function isArcadeReady(fact: Fact): boolean {
-  return fact.mastery >= ARCADE_MIN_MASTERY;
-}
-
 /**
  * Przejście po jednej odpowiedzi. Zwraca nowy fakt — wejściowy zostaje nietknięty.
  *
@@ -170,11 +165,13 @@ export function applyAnswer(fact: Fact, event: AnswerEvent, now: number): Fact {
   return { ...advanced, mastery: stepToward(fact.mastery, earnedMastery(advanced)) };
 }
 
-/** Ile z 21 nietrywialnych faktów jest już zautomatyzowanych — to jest pasek postępu. */
-export function trackedProgress(facts: readonly Fact[]): { readonly automated: number; readonly total: number } {
-  const tracked = facts.filter((fact) => !fact.trivial);
+/** Ile z podanych działań jest już opanowanych. Wołający decyduje, co liczyć. */
+export function countMastered(facts: readonly Fact[]): {
+  readonly mastered: number;
+  readonly total: number;
+} {
   return {
-    automated: tracked.filter((fact) => fact.mastery === 4).length,
-    total: tracked.length,
+    mastered: facts.filter((fact) => fact.mastery >= GRADUATION_MASTERY).length,
+    total: facts.length,
   };
 }

@@ -2,14 +2,12 @@ import {
   MAX_FACTOR,
   MIN_FACTOR,
   TOTAL_FACT_COUNT,
-  TRACKED_FACT_COUNT,
   allFacts,
   createFact,
   factKey,
   factProduct,
   isFactKey,
   isFactor,
-  isTrivial,
   keyOf,
   parseFactKey,
   productOf,
@@ -84,21 +82,6 @@ describe('parseFactKey', () => {
   });
 });
 
-describe('isTrivial', () => {
-  it('uznaje za trywialne wszystko z czynnikiem 1, 2, 5 lub 10', () => {
-    expect(isTrivial(1, 7)).toBe(true);
-    expect(isTrivial(7, 2)).toBe(true);
-    expect(isTrivial(5, 9)).toBe(true);
-    expect(isTrivial(3, 10)).toBe(true);
-  });
-
-  it('nie uznaje za trywialne faktów z 3, 4, 6, 7, 8, 9', () => {
-    expect(isTrivial(3, 7)).toBe(false);
-    expect(isTrivial(6, 6)).toBe(false);
-    expect(isTrivial(8, 9)).toBe(false);
-  });
-});
-
 describe('productOf / factProduct', () => {
   it('liczy wynik', () => {
     expect(productOf(7, 8)).toBe(56);
@@ -119,7 +102,6 @@ describe('createFact', () => {
     expect(fact).toEqual<Fact>({
       a: 7,
       b: 8,
-      trivial: false,
       box: 1,
       mastery: 0,
       recentTimes: [],
@@ -129,10 +111,6 @@ describe('createFact', () => {
     });
   });
 
-  it('oznacza trywialność zgodnie z czynnikami', () => {
-    expect(createFact(2, 7).trivial).toBe(true);
-    expect(createFact(3, 7).trivial).toBe(false);
-  });
 });
 
 describe('allFacts', () => {
@@ -161,19 +139,6 @@ describe('allFacts', () => {
       for (let b = MIN_FACTOR; b <= MAX_FACTOR; b++) {
         expect(keys.has(factKey(a, b))).toBe(true);
       }
-    }
-  });
-
-  it('zawiera dokładnie 21 faktów nietrywialnych', () => {
-    expect(facts.filter((f) => !f.trivial)).toHaveLength(TRACKED_FACT_COUNT);
-    expect(facts.filter((f) => f.trivial)).toHaveLength(TOTAL_FACT_COUNT - TRACKED_FACT_COUNT);
-  });
-
-  it('nietrywialne to dokładnie pary z {3,4,6,7,8,9}', () => {
-    const hard = new Set([3, 4, 6, 7, 8, 9]);
-    for (const fact of facts.filter((f) => !f.trivial)) {
-      expect(hard.has(fact.a)).toBe(true);
-      expect(hard.has(fact.b)).toBe(true);
     }
   });
 

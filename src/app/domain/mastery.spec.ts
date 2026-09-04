@@ -1,15 +1,14 @@
 import { allFacts, createFact, keyOf, type AnswerEvent, type Fact, type Mastery } from './fact';
 import {
-  ARCADE_MIN_MASTERY,
+  GRADUATION_MASTERY,
   BOX_INTERVALS_MS,
   MAX_BOX,
   applyAnswer,
   dueAtForBox,
   earnedMastery,
-  isArcadeReady,
+  countMastered,
   isDue,
   median,
-  trackedProgress,
 } from './mastery';
 
 const NOW = 1_700_000_000_000;
@@ -230,36 +229,33 @@ describe('drabinka mastery', () => {
   });
 });
 
-describe('isArcadeReady', () => {
-  it('wpuszcza dopiero od poziomu 2', () => {
+describe('GRADUATION_MASTERY', () => {
+  it('działanie osiąga próg po dwóch trafieniach z rzędu', () => {
     let fact = createFact(7, 8);
-    expect(isArcadeReady(fact)).toBe(false);
+    expect(fact.mastery).toBeLessThan(GRADUATION_MASTERY);
 
     fact = repeat(fact, 1);
     expect(fact.mastery).toBe(1);
-    expect(isArcadeReady(fact)).toBe(false);
 
     fact = repeat(fact, 1);
-    expect(fact.mastery).toBe(ARCADE_MIN_MASTERY);
-    expect(isArcadeReady(fact)).toBe(true);
+    expect(fact.mastery).toBe(GRADUATION_MASTERY);
   });
 });
 
-describe('trackedProgress', () => {
-  it('liczy tylko fakty nietrywialne', () => {
-    expect(trackedProgress(allFacts())).toEqual({ automated: 0, total: 21 });
+describe('countMastered', () => {
+  it('świeży zbiór nie ma nic opanowanego', () => {
+    expect(countMastered(allFacts())).toEqual({ mastered: 0, total: 55 });
   });
 
-  it('ignoruje zautomatyzowane fakty trywialne', () => {
-    const facts = allFacts().map((fact) => (fact.trivial ? { ...fact, mastery: 4 as Mastery } : fact));
-    expect(trackedProgress(facts)).toEqual({ automated: 0, total: 21 });
-  });
-
-  it('zlicza zautomatyzowane fakty nietrywialne', () => {
-    const facts = allFacts().map((fact) =>
-      !fact.trivial && fact.a === 7 ? { ...fact, mastery: 4 as Mastery } : fact,
+  it('liczy dokładnie to, co dostanie — filtrowanie jest po stronie wołającego', () => {
+    const facts = allFacts().slice(0, 10).map((fact, i) =>
+      i < 4 ? { ...fact, mastery: 3 as Mastery } : fact,
     );
-    // 7x7, 7x8, 7x9 — pary siódemki z {3,4,6} mają a < 7
-    expect(trackedProgress(facts).automated).toBe(3);
+    expect(countMastered(facts)).toEqual({ mastered: 4, total: 10 });
+  });
+
+  it('nie liczy działań poniżej progu', () => {
+    const facts = allFacts().map((fact) => ({ ...fact, mastery: 1 as Mastery }));
+    expect(countMastered(facts).mastered).toBe(0);
   });
 });

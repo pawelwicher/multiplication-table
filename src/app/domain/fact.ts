@@ -12,13 +12,6 @@ export const MIN_FACTOR = 1;
 /** Największy czynnik w tabliczce. */
 export const MAX_FACTOR = 10;
 
-/**
- * Czynniki, które dziecko liczy odruchowo — dopisanie zera, podwojenie,
- * połowa dziesiątki, mnożenie przez jeden. Fakt z takim czynnikiem wchodzi
- * do gry, ale nie liczy się do paska postępu.
- */
-export const TRIVIAL_FACTORS: readonly number[] = [1, 2, 5, 10];
-
 /** Ile ostatnich czasów odpowiedzi trzymamy w `Fact.recentTimes`. */
 export const RECENT_TIMES_WINDOW = 5;
 
@@ -38,9 +31,6 @@ export interface AnswerSample {
 /** Wszystkich unikalnych faktów `a <= b` w zakresie 1–10. */
 export const TOTAL_FACT_COUNT = 55;
 
-/** Faktów nietrywialnych — to jest miara „ile jeszcze zostało do opanowania". */
-export const TRACKED_FACT_COUNT = 21;
-
 /** Klucz znormalizowany: zawsze mniejszy czynnik pierwszy. `7×8` i `8×7` to jeden fakt. */
 export type FactKey = `${number}x${number}`;
 
@@ -55,8 +45,6 @@ export interface Fact {
   readonly a: number;
   /** Większy czynnik. */
   readonly b: number;
-  /** Czy fakt jest trywialny (czynnik 1, 2, 5 lub 10). Wynika z `a` i `b`, więc jest niezmienny. */
-  readonly trivial: boolean;
   box: LeitnerBox;
   mastery: Mastery;
   /** Ostatnie `RECENT_TIMES_WINDOW` pomiarów, od najstarszego. Tylko odpowiedzi poprawne. */
@@ -125,11 +113,6 @@ export function parseFactKey(key: string): { readonly a: number; readonly b: num
   return { a: Number(rawA), b: Number(rawB) };
 }
 
-/** Czy fakt jest trywialny — ma czynnik 1, 2, 5 lub 10. */
-export function isTrivial(a: number, b: number): boolean {
-  return TRIVIAL_FACTORS.includes(a) || TRIVIAL_FACTORS.includes(b);
-}
-
 /** Wynik działania. Jedyne miejsce, w którym mnożymy. */
 export function productOf(a: number, b: number): number {
   return a * b;
@@ -154,7 +137,6 @@ export function createFact(a: number, b: number): Fact {
   return {
     a: lo,
     b: hi,
-    trivial: isTrivial(lo, hi),
     box: 1,
     mastery: 0,
     recentTimes: [],

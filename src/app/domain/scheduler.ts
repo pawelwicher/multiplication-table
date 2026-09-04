@@ -5,7 +5,7 @@
  * logika wyboru jest deterministyczna w testach i nie zna `Math.random`.
  */
 
-import { factProduct, keyOf, type Fact, type FactKey, type Mastery } from './fact';
+import { keyOf, type Fact, type FactKey, type Mastery } from './fact';
 import { isDue } from './mastery';
 
 /** Generator liczb z przedziału [0, 1). */
@@ -28,16 +28,9 @@ export const DUE_WINDOW = 5;
 export interface NextFactQuery {
   readonly now: number;
   readonly rng: Rng;
-  /** Fakty aktualnie na ekranie — blokują swój klucz i swój wynik. */
-  readonly onScreen?: readonly Fact[];
-  /** Ostatnio pokazany fakt — blokuje swój klucz, żeby nie wypadł dwa razy pod rząd. */
-  readonly lastKey?: FactKey | null;
-  /**
-   * Klucze do pominięcia bez blokowania ich wyników. Tryb spokojny trzyma tak
-   * swój zestaw roboczy: te fakty już ma, chce dobrać coś spoza niego.
-   */
+  /** Klucze do pominięcia — zestaw roboczy podaje tu to, co już ma. */
   readonly excludeKeys?: readonly FactKey[];
-  /** Zawężenie puli, np. wymóg `mastery >= 2` w arcade. */
+  /** Zawężenie puli, np. do wybranego progu trudności. */
   readonly eligible?: (fact: Fact) => boolean;
 }
 
@@ -56,28 +49,15 @@ export function dueFacts(facts: readonly Fact[], now: number): Fact[] {
 /**
  * Następny fakt albo `null`, gdy nic nie przechodzi przez filtry.
  *
- * `null` jest normalnym wynikiem, nie błędem: przy dwóch kafelkach na ekranie
- * i wąskiej puli może po prostu nie być czego pokazać.
+ * `null` jest normalnym wynikiem, nie błędem: przy wąskim progu trudności
+ * i pełnym zestawie roboczym może po prostu nie być czego dobrać.
  */
 export function nextFact(facts: readonly Fact[], query: NextFactQuery): Fact | null {
-  const { now, rng, onScreen = [], lastKey = null, excludeKeys = [], eligible } = query;
+  const { now, rng, excludeKeys = [], eligible } = query;
 
-  const blockedKeys = new Set<FactKey>(onScreen.map(keyOf));
-  for (const key of excludeKeys) {
-    blockedKeys.add(key);
-  }
-  if (lastKey !== null) {
-    blockedKeys.add(lastKey);
-  }
-  // Dwa kafelki z tym samym wynikiem (4x6 i 3x8) są nierozstrzygalne dla gracza:
-  // wpisuje 24 i nie wie, który zniknie.
-  const blockedProducts = new Set<number>(onScreen.map(factProduct));
-
+  const blocked = new Set<FactKey>(excludeKeys);
   const pool = facts.filter(
-    (fact) =>
-      (eligible === undefined || eligible(fact)) &&
-      !blockedKeys.has(keyOf(fact)) &&
-      !blockedProducts.has(factProduct(fact)),
+    (fact) => (eligible === undefined || eligible(fact)) && !blocked.has(keyOf(fact)),
   );
 
   if (pool.length === 0) {

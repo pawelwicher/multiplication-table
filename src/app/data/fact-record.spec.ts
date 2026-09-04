@@ -19,7 +19,6 @@ describe('toRecord', () => {
     const record = toRecord(createFact(7, 8));
     expect(record).not.toHaveProperty('a');
     expect(record).not.toHaveProperty('b');
-    expect(record).not.toHaveProperty('trivial');
     expect(record.key).toBe('7x8');
   });
 });
@@ -29,7 +28,6 @@ describe('fromRecord', () => {
     const fact = fromRecord(stored()) as Fact;
     expect(fact.a).toBe(7);
     expect(fact.b).toBe(8);
-    expect(fact.trivial).toBe(false);
     expect(fact.box).toBe(3);
     expect(fact.mastery).toBe(2);
     expect(fact.recentTimes).toEqual([{ ms: 1500, noisy: false }]);

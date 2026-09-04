@@ -1,5 +1,5 @@
-import { allFacts, createFact, factProduct, keyOf, type Fact, type Mastery } from './fact';
-import { ARCADE_MIN_MASTERY, isArcadeReady } from './mastery';
+import { DIFFICULTIES, withinDifficulty } from './difficulty';
+import { allFacts, createFact, factProduct, keyOf, type Fact, type FactKey } from './fact';
 import { DUE_WINDOW, dueFacts, nextFact, type Rng } from './scheduler';
 
 const NOW = 1_700_000_000_000;
@@ -28,7 +28,7 @@ describe('dueFacts', () => {
       withState(6, 7, { dueAt: NOW + 1000 }),
       withState(8, 9, { dueAt: NOW }),
     ];
-    expect(dueFacts(facts, NOW).map(keyOf)).toEqual(['8x9', '3x4'].sort());
+    expect(dueFacts(facts, NOW).map(keyOf).sort()).toEqual(['3x4', '8x9']);
   });
 
   it('sortuje od najdłużej czekających', () => {
@@ -55,65 +55,44 @@ describe('dueFacts', () => {
 
 describe('nextFact — pusta pula', () => {
   it('zwraca null, gdy nic nie przechodzi przez filtr', () => {
-    const facts = allFacts();
-    expect(nextFact(facts, { now: NOW, rng: alwaysDue, eligible: () => false })).toBeNull();
+    expect(nextFact(allFacts(), { now: NOW, rng: alwaysDue, eligible: () => false })).toBeNull();
   });
 
   it('zwraca null dla pustej listy faktów', () => {
     expect(nextFact([], { now: NOW, rng: alwaysDue })).toBeNull();
   });
+
+  it('zwraca null, gdy cała pula jest wykluczona', () => {
+    const facts = allFacts();
+    const all = facts.map(keyOf);
+    expect(nextFact(facts, { now: NOW, rng: alwaysDue, excludeKeys: all })).toBeNull();
+  });
 });
 
-describe('nextFact — wykluczenia', () => {
-  it('nigdy nie zwraca faktu z ekranu', () => {
+describe('nextFact — wykluczanie kluczy', () => {
+  it('nigdy nie zwraca wykluczonego działania', () => {
     const facts = allFacts();
-    const onScreen = [facts[0] as Fact, facts[1] as Fact];
-    const blocked = new Set(onScreen.map(keyOf));
-
-    for (let i = 0; i < 200; i++) {
-      const picked = nextFact(facts, { now: NOW, rng: scripted([i / 200, (i * 7) % 97 / 97]), onScreen });
-      expect(picked).not.toBeNull();
-      expect(blocked.has(keyOf(picked as Fact))).toBe(false);
-    }
-  });
-
-  it('nigdy nie zwraca tego samego faktu dwa razy pod rząd', () => {
-    const facts = allFacts();
-    let last = keyOf(facts[0] as Fact);
+    const excludeKeys: FactKey[] = ['1x1', '1x2', '3x4', '7x8'];
+    const blocked = new Set(excludeKeys);
 
     for (let i = 0; i < 200; i++) {
       const picked = nextFact(facts, {
         now: NOW,
         rng: scripted([(i % 10) / 10, ((i * 13) % 97) / 97]),
-        lastKey: last,
+        excludeKeys,
       });
       expect(picked).not.toBeNull();
-      const key = keyOf(picked as Fact);
-      expect(key).not.toBe(last);
-      last = key;
+      expect(blocked.has(keyOf(picked as Fact))).toBe(false);
     }
   });
 
-  it('nigdy nie zwraca faktu o wyniku już obecnym na ekranie', () => {
-    const facts = allFacts();
-    // 4x6 = 24, na ekranie jest więc też zablokowane 3x8
-    const onScreen = [createFact(4, 6)];
+  it('nie blokuje działań o tym samym wyniku, tylko wskazane klucze', () => {
+    // 4x6 i 3x8 dają oba 24; wykluczenie jednego nie może usunąć drugiego.
+    const facts = [createFact(4, 6), createFact(3, 8)];
+    expect(factProduct(facts[0] as Fact)).toBe(factProduct(facts[1] as Fact));
 
-    for (let i = 0; i < 200; i++) {
-      const picked = nextFact(facts, {
-        now: NOW,
-        rng: scripted([(i % 10) / 10, ((i * 29) % 97) / 97]),
-        onScreen,
-      });
-      expect(picked).not.toBeNull();
-      expect(factProduct(picked as Fact)).not.toBe(24);
-    }
-  });
-
-  it('kolizja wyników jest realna — 3x8 zostaje odrzucone przez 4x6', () => {
-    const facts = [createFact(3, 8)];
-    expect(factProduct(facts[0] as Fact)).toBe(24);
-    expect(nextFact(facts, { now: NOW, rng: alwaysDue, onScreen: [createFact(4, 6)] })).toBeNull();
+    const picked = nextFact(facts, { now: NOW, rng: alwaysDue, excludeKeys: ['4x6'] });
+    expect(keyOf(picked as Fact)).toBe('3x8');
   });
 });
 
@@ -126,18 +105,16 @@ describe('nextFact — podział zaległe / powtórka', () => {
     expect(keyOf(nextFact(facts, { now: NOW, rng: alwaysDue }) as Fact)).toBe('3x7');
   });
 
-  it('przy wysokim losowaniu bierze fakt do odświeżenia', () => {
+  it('przy wysokim losowaniu bierze działanie do odświeżenia', () => {
     expect(keyOf(nextFact(facts, { now: NOW, rng: alwaysReview }) as Fact)).toBe('6x8');
   });
 
   it('spada na zaległe, gdy nie ma czego odświeżać', () => {
-    const onlyOverdue = [overdue];
-    expect(keyOf(nextFact(onlyOverdue, { now: NOW, rng: alwaysReview }) as Fact)).toBe('3x7');
+    expect(keyOf(nextFact([overdue], { now: NOW, rng: alwaysReview }) as Fact)).toBe('3x7');
   });
 
   it('spada na powtórkę, gdy nic nie jest zaległe', () => {
-    const onlyFuture = [fluent];
-    expect(keyOf(nextFact(onlyFuture, { now: NOW, rng: alwaysDue }) as Fact)).toBe('6x8');
+    expect(keyOf(nextFact([fluent], { now: NOW, rng: alwaysDue }) as Fact)).toBe('6x8');
   });
 
   it('wybiera cokolwiek z puli, gdy obie kategorie są puste', () => {
@@ -160,12 +137,11 @@ describe('nextFact — podział zaległe / powtórka', () => {
 
 describe('nextFact — okno zaległych', () => {
   it('losuje spośród najbardziej zaległych, nie tylko z pierwszego', () => {
-    // Świeży zbiór: wszystko ma dueAt 0, więc bez okna zawsze wypadałby ten sam fakt.
+    // Świeży zbiór: wszystko ma dueAt 0, więc bez okna zawsze wypadałoby to samo.
     const facts = allFacts();
     const picked = new Set<string>();
     for (let i = 0; i < 50; i++) {
-      const fact = nextFact(facts, { now: NOW, rng: scripted([0.0, i / 50]) });
-      picked.add(keyOf(fact as Fact));
+      picked.add(keyOf(nextFact(facts, { now: NOW, rng: scripted([0.0, i / 50]) }) as Fact));
     }
     expect(picked.size).toBeGreaterThan(1);
     expect(picked.size).toBeLessThanOrEqual(DUE_WINDOW);
@@ -182,22 +158,32 @@ describe('nextFact — okno zaległych', () => {
   });
 });
 
-describe('nextFact — filtr arcade', () => {
-  it('nie wpuszcza faktów poniżej progu mastery', () => {
-    const facts = allFacts().map((fact, index) => ({ ...fact, mastery: (index % 5) as Mastery }));
-
-    for (let i = 0; i < 200; i++) {
-      const picked = nextFact(facts, {
-        now: NOW,
-        rng: scripted([(i % 10) / 10, ((i * 17) % 97) / 97]),
-        eligible: isArcadeReady,
-      });
-      expect(picked).not.toBeNull();
-      expect((picked as Fact).mastery).toBeGreaterThanOrEqual(ARCADE_MIN_MASTERY);
+describe('nextFact — filtr trudności', () => {
+  it('nie wychodzi poza wybrany próg', () => {
+    for (const difficulty of DIFFICULTIES) {
+      for (let i = 0; i < 40; i++) {
+        const picked = nextFact(allFacts(), {
+          now: NOW,
+          rng: scripted([(i % 10) / 10, ((i * 17) % 97) / 97]),
+          eligible: (fact) => withinDifficulty(fact, difficulty),
+        });
+        expect(picked).not.toBeNull();
+        expect(factProduct(picked as Fact)).toBeLessThanOrEqual(difficulty);
+      }
     }
   });
 
-  it('zwraca null na świeżym zbiorze — nic nie osiągnęło jeszcze poziomu 2', () => {
-    expect(nextFact(allFacts(), { now: NOW, rng: alwaysDue, eligible: isArcadeReady })).toBeNull();
+  it('łączy próg z wykluczeniami', () => {
+    const facts = allFacts();
+    const excludeKeys: FactKey[] = ['1x1', '1x2', '1x3'];
+    const picked = nextFact(facts, {
+      now: NOW,
+      rng: alwaysDue,
+      excludeKeys,
+      eligible: (fact) => withinDifficulty(fact, 20),
+    });
+    expect(picked).not.toBeNull();
+    expect(excludeKeys).not.toContain(keyOf(picked as Fact));
+    expect(factProduct(picked as Fact)).toBeLessThanOrEqual(20);
   });
 });

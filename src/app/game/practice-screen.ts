@@ -1,33 +1,58 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 
+import { readDifficulty, writeDifficulty } from '../data/preferences';
 import {
-  CALM_WORKING_SET,
+  DIFFICULTIES,
+  difficultyLabel,
+  factsWithin,
+  withinDifficulty,
+  type Difficulty,
+} from '../domain/difficulty';
+import { factProduct, keyOf, type Fact, type FactKey } from '../domain/fact';
+import { countMastered } from '../domain/mastery';
+import {
+  WORKING_SET,
   answerQuestion,
-  calmResolve,
   hasGraduated,
   isSessionDone,
   pickFromSet,
+  rememberAsked,
+  resolveBuffer,
   sessionProgress,
   startSession,
-} from '../domain/calm';
-import { factProduct, keyOf, type Fact, type FactKey } from '../domain/fact';
+} from '../domain/practice';
 import { FactStore } from '../state/fact-store';
 import { Numpad } from './numpad';
 
 @Component({
-  selector: 'app-calm-screen',
-  imports: [Numpad, RouterLink],
+  selector: 'app-practice-screen',
+  imports: [Numpad],
   host: { '(document:keydown)': 'onKey($event)' },
   template: `
-    <main class="calm">
+    <main class="screen">
       <header class="bar">
-        <a class="back" routerLink="/" aria-label="Wróć do menu">‹</a>
-        <div class="progress" [attr.aria-label]="'Postęp sesji'">
+        <div class="levels" role="group" aria-label="Poziom trudności">
+          @for (level of levels; track level) {
+            <button
+              type="button"
+              class="level"
+              [class.level--on]="level === difficulty()"
+              [attr.aria-pressed]="level === difficulty()"
+              (click)="setDifficulty(level)"
+            >
+              {{ label(level) }}
+            </button>
+          }
+        </div>
+      </header>
+
+      <div class="status">
+        <div class="progress" aria-hidden="true">
           <div class="progress__fill" [style.width.%]="progress() * 100"></div>
         </div>
         <span class="count">{{ session().asked }}/{{ session().length }}</span>
-      </header>
+        <span class="known">umiesz {{ known().mastered }}/{{ known().total }}</span>
+      </div>
 
       @if (done()) {
         <section class="summary">
@@ -35,8 +60,6 @@ import { Numpad } from './numpad';
           <p class="summary__score">{{ session().correct }} / {{ session().length }}</p>
           <p class="summary__label">za pierwszym razem</p>
           <button type="button" class="primary" (click)="restart()">Jeszcze raz</button>
-          <a class="secondary" routerLink="/game">Spróbuj arcade</a>
-          <a class="secondary" routerLink="/map">Mapa opanowania</a>
         </section>
       } @else if (fact(); as current) {
         <section class="question" [class.question--revealed]="revealed()">
@@ -58,35 +81,69 @@ import { Numpad } from './numpad';
       } @else {
         <p class="loading">Wczytuję…</p>
       }
+
+      @if (store.ready() && !store.saving()) {
+        <p class="warn">Postęp nie zapisze się w tej przeglądarce.</p>
+      }
     </main>
   `,
   styles: `
-    .calm {
+    .screen {
       display: grid;
-      grid-template-rows: auto 1fr var(--numpad-share);
+      /* minmax(0, 1fr) zamiast domyślnego auto: bez tego najszerszy wiersz
+         rozpycha całą siatkę i numpad wychodzi poza ekran. */
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto 1fr var(--numpad-share);
       height: 100%;
     }
 
     .bar {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      padding: 10px 16px;
+      min-width: 0;
       border-bottom: 1px solid var(--edge);
       background: var(--bg-sunken);
     }
 
-    .back {
-      padding: 0 8px;
+    /* Wszystkie dziewięć progów naraz — chowanie ich w poziomym scrollu
+       znaczyłoby, że dziecko o nich nie wie. */
+    .levels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      padding: 10px 12px;
+    }
+
+    .level {
+      flex: none;
+      padding: 7px 13px;
+      border: 1px solid var(--edge);
+      border-radius: 999px;
+      background: var(--bg-raised);
       color: var(--ink-dim);
-      font-size: 1.6rem;
-      line-height: 1;
-      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .level--on {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #06202b;
+    }
+
+    .status {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 16px;
+      color: var(--ink-dim);
+      font-size: 0.78rem;
     }
 
     .progress {
       flex: 1;
-      height: 8px;
+      height: 6px;
       overflow: hidden;
       border-radius: 999px;
       background: var(--bg-raised);
@@ -99,9 +156,8 @@ import { Numpad } from './numpad';
       transition: width 200ms ease;
     }
 
-    .count {
-      color: var(--ink-dim);
-      font-size: 0.85rem;
+    .known {
+      color: var(--good);
     }
 
     .question {
@@ -158,7 +214,7 @@ import { Numpad } from './numpad';
       gap: 8px;
       align-items: center;
       justify-content: center;
-      grid-row: 2 / 4;
+      grid-row: 3 / 5;
       padding: 24px;
       text-align: center;
     }
@@ -190,22 +246,27 @@ import { Numpad } from './numpad';
       font-weight: 700;
     }
 
-    .secondary {
-      margin-top: 10px;
-      color: var(--ink-dim);
-      font-size: 0.9rem;
-    }
-
     .loading {
       display: grid;
       place-items: center;
-      grid-row: 2 / 4;
+      grid-row: 3 / 5;
       color: var(--ink-dim);
+    }
+
+    .warn {
+      margin: 0;
+      padding: 0 16px 10px;
+      color: var(--accent-warm);
+      font-size: 0.72rem;
+      text-align: center;
     }
   `,
 })
-export class CalmScreen {
-  private readonly store = inject(FactStore);
+export class PracticeScreen {
+  protected readonly store = inject(FactStore);
+
+  protected readonly levels = DIFFICULTIES;
+  protected readonly difficulty = signal<Difficulty>(readDifficulty());
 
   protected readonly fact = signal<Fact | null>(null);
   protected readonly buffer = signal('');
@@ -214,6 +275,11 @@ export class CalmScreen {
 
   protected readonly done = computed(() => isSessionDone(this.session()));
   protected readonly progress = computed(() => sessionProgress(this.session()));
+
+  /** Ile działań w wybranym progu jest już opanowanych. */
+  protected readonly known = computed(() =>
+    countMastered(factsWithin(this.store.all(), this.difficulty())),
+  );
 
   /** W polu wyniku widać albo to, co wpisuje dziecko, albo podpowiedziany wynik. */
   protected readonly shown = computed(() => {
@@ -225,22 +291,35 @@ export class CalmScreen {
   });
 
   private askedAt = 0;
-  private lastKey: FactKey | null = null;
 
-  /**
-   * Działania krążące w tej sesji. Fakt wypada dopiero po awansie na poziom 2 —
-   * kolejka Leitnera odesłałaby go o dziesięć minut, czyli poza sesję.
-   */
+  /** Ostatnio zadane pytania — pilnują, żeby działanie nie wróciło za szybko. */
+  private recent: FactKey[] = [];
+
+  /** Działania krążące w tej sesji. Wypadają dopiero po awansie. */
   private workingSet: FactKey[] = [];
 
   constructor() {
     // Baza wczytuje się asynchronicznie; pierwsze pytanie dopiero po niej,
-    // inaczej pytalibyśmy o fakty ze świeżego zbioru zamiast z zapisanych postępów.
+    // inaczej pytalibyśmy o działania ze świeżego zbioru zamiast z zapisanych postępów.
     effect(() => {
       if (this.store.ready() && this.fact() === null && !this.done()) {
         this.ask();
       }
     });
+  }
+
+  protected label(difficulty: Difficulty): string {
+    return difficultyLabel(difficulty);
+  }
+
+  /** Zmiana progu zaczyna sesję od nowa — stary zestaw roboczy może być spoza zakresu. */
+  protected setDifficulty(difficulty: Difficulty): void {
+    if (difficulty === this.difficulty()) {
+      return;
+    }
+    this.difficulty.set(difficulty);
+    writeDifficulty(difficulty);
+    this.restart();
   }
 
   protected onDigit(digit: number): void {
@@ -258,8 +337,13 @@ export class CalmScreen {
 
   protected onKey(event: KeyboardEvent): void {
     if (this.done()) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        this.restart();
+      }
       return;
     }
+
     if (event.key >= '0' && event.key <= '9') {
       event.preventDefault();
       this.onDigit(Number(event.key));
@@ -287,7 +371,7 @@ export class CalmScreen {
     this.buffer.set('');
     this.fact.set(null);
     this.workingSet = [];
-    this.lastKey = null;
+    this.recent = [];
     this.ask();
   }
 
@@ -298,7 +382,7 @@ export class CalmScreen {
     }
 
     const answer = factProduct(current);
-    switch (calmResolve(buffer, answer)) {
+    switch (resolveBuffer(buffer, answer)) {
       case 'buffering':
         this.buffer.set(buffer);
         break;
@@ -315,14 +399,14 @@ export class CalmScreen {
 
   private commit(current: Fact): void {
     // Po podpowiedzi dziecko tylko przepisuje wynik — to nie jest przypomnienie,
-    // więc nie zapisujemy tego jako poprawnej odpowiedzi po raz drugi.
+    // więc nie zapisujemy tego jako poprawnej odpowiedzi.
     const firstTry = !this.revealed();
     if (firstTry) {
       this.store.record({
         key: keyOf(current),
         correct: true,
         elapsedMs: Date.now() - this.askedAt,
-        // Tryb spokojny to jedyne miejsce z czystym pomiarem — stąd poziom 4.
+        // Jedno działanie na ekranie, więc pomiar jest czysty.
         noisy: false,
       });
     }
@@ -357,7 +441,7 @@ export class CalmScreen {
     this.ask();
   }
 
-  /** Co awansowało na poziom 2, wraca do normalnego rytmu powtórek. */
+  /** Co osiągnęło próg opanowania, wraca do normalnego rytmu powtórek. */
   private retireGraduates(): void {
     this.workingSet = this.workingSet.filter((key) => {
       const fact = this.store.find(key);
@@ -366,8 +450,9 @@ export class CalmScreen {
   }
 
   private refill(): void {
-    while (this.workingSet.length < CALM_WORKING_SET) {
-      const next = this.store.nextCalm(this.workingSet);
+    const difficulty = this.difficulty();
+    while (this.workingSet.length < WORKING_SET) {
+      const next = this.store.next(this.workingSet, (fact) => withinDifficulty(fact, difficulty));
       if (next === null) {
         return;
       }
@@ -377,10 +462,10 @@ export class CalmScreen {
 
   private ask(): void {
     this.refill();
-    const key = pickFromSet(this.workingSet, this.lastKey, Math.random);
+    const key = pickFromSet(this.workingSet, this.recent, Math.random);
     this.fact.set(key === null ? null : this.store.find(key));
     if (key !== null) {
-      this.lastKey = key;
+      this.recent = rememberAsked(this.recent, key);
     }
     this.askedAt = Date.now();
   }
