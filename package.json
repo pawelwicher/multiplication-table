@@ -6,10 +6,12 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:run": "ng test --watch=false",
+    "test:domain": "ng test --watch=false --include=src/app/domain"
   },
   "private": true,
-  "packageManager": "npm@10.7.0",
+  "packageManager": "npm@11.19.1",
   "dependencies": {
     "@angular/common": "^22.1.0",
     "@angular/compiler": "^22.1.0",

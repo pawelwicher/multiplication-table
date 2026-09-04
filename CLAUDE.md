@@ -56,3 +56,45 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Use the `providedIn: 'root'` option for singleton services
 - Prefer the `@Service` decorator over `@Injectable({providedIn: 'root'})` for new singleton services (Angular v22+)
 - Use the `inject()` function instead of constructor injection
+
+---
+
+## Zasady tego projektu
+
+Gra arcade do nauki tabliczki mnożenia. Statyczna, bez backendu, bez logowania.
+
+### Architektura
+
+```
+src/app/
+  domain/   czysty TypeScript — model, mastery, scheduler, logika trybów
+  data/     persystencja (IndexedDB)
+  state/    serwisy sygnałowe spinające domain z UI
+  game/     pętla gry, renderer kafelków, numpad, HUD
+  ui/       shell, routing, ekrany poza rozgrywką
+```
+
+**Twarda zasada: `domain/` nie wie nic o Angularze.** Zero importów z `@angular/*`,
+zero DOM, zero I/O, zero `Date.now()` — czas wpływa z zewnątrz jako argument.
+`domain/` musi dać się przetestować bez uruchamiania Angulara.
+
+### Zależności
+
+Zero zewnętrznych bibliotek runtime. Bez silnika gry, bez UI kitu, bez Dexie.
+RxJS tylko tam, gdzie sygnał naprawdę nie wystarczy.
+
+### Testy
+
+Vitest, wyłącznie dla `domain/`, pisane razem z kodem. `npm run test:domain`.
+
+### Wydajność pętli gry
+
+Nie aktualizuj sygnałów co klatkę. Pozycje kafelków to zwykłe obiekty zapisywane
+prosto do `element.style.transform` w jednym `requestAnimationFrame`.
+Sygnały trzymają wyłącznie stan dyskretny: wynik, życia, poziom, seria, bufor wejścia.
+
+### Uwaga o npm
+
+Globalny npm 10.7.0 nie potrafi rozwiązać drzewa zależności Vitest 4
+(`Cannot read properties of null (reading 'edgesOut')`). Instaluj przez
+`npx npm@11 install` albo zaktualizuj globalny npm.
