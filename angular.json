@@ -2,12 +2,11 @@
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "cli": {
-    "packageManager": "npm",
-    "analytics": false
+    "packageManager": "npm"
   },
   "newProjectRoot": "projects",
   "projects": {
-    "multiplication-table": {
+    "math-trainer": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -57,10 +56,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "multiplication-table:build:production"
+              "buildTarget": "math-trainer:build:production"
             },
             "development": {
-              "buildTarget": "multiplication-table:build:development"
+              "buildTarget": "math-trainer:build:development"
             }
           },
           "defaultConfiguration": "development"

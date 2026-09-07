@@ -1,0 +1,16 @@
+<div class="shell">
+  <header class="top">
+    <h1>Trening matematyczny</h1>
+    <button type="button" class="theme" [attr.aria-label]="themeLabel()" (click)="theme.toggle()">
+      <span aria-hidden="true">{{ theme.theme() === 'dark' ? '☀' : '☾' }}</span>
+    </button>
+  </header>
+
+  <main>
+    @if (view() === 'play') {
+      <app-play (quit)="setup()" />
+    } @else {
+      <app-setup [focusOnEnter]="cameBack()" (start)="play()" />
+    }
+  </main>
+</div>

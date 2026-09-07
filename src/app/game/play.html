@@ -1,0 +1,92 @@
+@if (finished()) {
+  <section class="summary card" aria-labelledby="summary-title">
+    <h2 id="summary-title" #focusTarget tabindex="-1">Koniec sesji</h2>
+    <p class="stars" aria-label="Ocena: {{ game.stars() }} z 3 gwiazdek">
+      @for (star of [1, 2, 3]; track star) {
+        <span aria-hidden="true" class="star" [class.star--on]="star <= game.stars()">★</span>
+      }
+    </p>
+    <dl class="totals">
+      <div>
+        <dt>Punkty</dt>
+        <dd>{{ game.points() }}</dd>
+      </div>
+      <div>
+        <dt>Poprawne</dt>
+        <dd>{{ game.correct() }}</dd>
+      </div>
+      <div>
+        <dt>Błędne</dt>
+        <dd>{{ game.wrong() }}</dd>
+      </div>
+      <div>
+        <dt>Skuteczność</dt>
+        <dd>{{ game.accuracy() }}%</dd>
+      </div>
+      <div>
+        <dt>Najdłuższa seria</dt>
+        <dd>{{ game.bestStreak() }}</dd>
+      </div>
+      <div>
+        <dt>Rekord</dt>
+        <dd>{{ settings.best() }}</dd>
+      </div>
+    </dl>
+    <div class="summary-actions">
+      <button type="button" class="primary" (click)="again()">Jeszcze raz</button>
+      <button type="button" class="secondary" (click)="quit.emit()">Zmień ustawienia</button>
+    </div>
+  </section>
+} @else {
+  <header class="stats">
+    <dl>
+      <div class="stat stat--ok">
+        <dt>Dobrze</dt>
+        <dd>{{ game.correct() }}</dd>
+      </div>
+      <div class="stat stat--bad">
+        <dt>Źle</dt>
+        <dd>{{ game.wrong() }}</dd>
+      </div>
+      <div class="stat">
+        <dt>Punkty</dt>
+        <dd>{{ game.points() }}</dd>
+      </div>
+      <div class="stat">
+        <dt>Seria</dt>
+        <dd>
+          {{ game.streak() }}<small>×{{ game.multiplier() }}</small>
+        </dd>
+      </div>
+    </dl>
+    <button type="button" class="quit" (click)="finish()">Koniec</button>
+  </header>
+
+  <section
+    #focusTarget
+    tabindex="-1"
+    aria-label="Zadanie"
+    class="board card"
+    [class.board--ok]="game.phase() === 'reveal' && game.lastCorrect()"
+    [class.board--bad]="game.phase() === 'reveal' && !game.lastCorrect()"
+  >
+    @if (game.problem(); as problem) {
+      <p class="worth">{{ problem.points }} pkt</p>
+      <p class="expression" role="img" [attr.aria-label]="spoken()">{{ problem.display }}</p>
+      <p class="answer">
+        <span class="answer-label" aria-hidden="true">{{ question() }}</span>
+        <output class="answer-value">{{ game.entry() || '?' }}</output>
+      </p>
+    }
+    <p class="verdict" role="status">{{ verdict() }}</p>
+  </section>
+
+  <app-keypad
+    [canSubmit]="game.canSubmit() || game.phase() === 'reveal'"
+    [submitLabel]="game.phase() === 'reveal' ? 'Dalej' : 'Sprawdź'"
+    (press)="game.press($event)"
+    (erase)="game.erase()"
+    (clear)="game.clear()"
+    (submit)="onSubmit()"
+  />
+}

@@ -61,60 +61,77 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 
 ## Zasady tego projektu
 
-Nauka tabliczki mnożenia dla dziecka. Jeden ekran, statyczna, bez backendu,
-bez logowania. Dziewięć progów trudności — próg to zakres wyniku działania.
+Trening matematyczny dla dziecka. Aplikacja statyczna, bez backendu i bez logowania.
+Dwa tryby: własne działania z wybranych kryteriów oraz tabliczka mnożenia.
 
 ### Architektura
 
 ```
 src/app/
-  domain/   czysty TypeScript — model, mastery, scheduler, trudność, sesja
-  data/     serializacja, IndexedDB, preferencje
-  state/    FactStore — jedyne źródło prawdy o postępach
-  game/     ekran ćwiczenia i numpad
+  domain/   czysty TypeScript — wyrażenia, generator, punktacja, tabliczka
+  state/    sygnałowe stores: ustawienia, przebieg gry, motyw, localStorage
+  ui/       klawiatura numeryczna
+  setup/    ekran kryteriów
+  game/     ekran ćwiczenia i podsumowanie
 ```
 
-Jeden ekran, więc bez routera. Nie dokładaj tras ani ekranów bez wyraźnej prośby.
+Dwa ekrany przełączane sygnałem w `App` — bez routera. Nie dokładaj tras ani
+ekranów bez wyraźnej prośby.
 
 **Twarda zasada: `domain/` nie wie nic o Angularze.** Zero importów z `@angular/*`,
-zero DOM, zero I/O, zero `Date.now()` — czas wpływa z zewnątrz jako argument.
-`domain/` musi dać się przetestować bez uruchamiania Angulara.
+zero DOM, zero I/O, zero `Math.random()` i `Date.now()` — losowość wchodzi z zewnątrz
+jako `Rng`, dzięki czemu testy są deterministyczne (`seeded()`).
 
 ### Zależności
 
-Zero zewnętrznych bibliotek runtime. Bez silnika gry, bez UI kitu, bez Dexie.
-RxJS tylko tam, gdzie sygnał naprawdę nie wystarczy.
+Zero zewnętrznych bibliotek runtime. Bez silnika gry, bez UI kitu, bez biblioteki
+do matematyki. RxJS tylko tam, gdzie sygnał naprawdę nie wystarczy.
+
+### Generator działań — trzy rzeczy, bez których to nie działa
+
+**Dzielenie musi wychodzić całkowicie.** W łańcuchu mnożeń i dzieleń pierwszy
+czynnik jest wielokrotnością iloczynu wszystkich dzielników (`buildProduct`).
+Każdy wynik pośredni jest wtedy całkowity — bez tej sztuczki co drugie działanie
+sypałoby ułamkami.
+
+**Wyniki pośrednie zostają w zakresie.** Suma składników jest budowana od lewej
+i po każdym kroku sprawdzamy, czy mieścimy się w `0..max`. Dlatego generator
+losuje z ponawianiem (`MAX_ATTEMPTS`), zamiast liczyć wynik po fakcie.
+
+**Nawias musi mieć gdzie zamieszkać.** `splitTerms` rezerwuje składnik o trzech
+liczbach, gdy nawiasy są włączone — bez rezerwacji wypadałyby na tyle rzadko,
+że dziecko by ich nie zobaczyło. Przy samym dodawaniu i odejmowaniu nawias ma
+sens tylko po minusie: `10 − (3 + 2)`.
+
+**Niewiadoma musi mieć jedno rozwiązanie.** `solvesUniquely` skanuje cały zakres
+przed pokazaniem zadania; inaczej dziecko mogłoby podać poprawną odpowiedź
+i dostać czerwony ekran.
+
+### Klawiatura
+
+Odpowiedzi wpisuje się wyłącznie własną klawiaturą (`ui/keypad.ts`) — na telefonie
+klawiatura systemowa nigdy nie zasłania działania. Nie zamieniaj tego na `<input>`.
+Fizyczna klawiatura (cyfry, Backspace, Enter, Escape) jest obsługiwana w `game/play.ts`.
 
 ### Testy
 
-Vitest dla `domain/` i dla czystej serializacji w `data/` — pisane razem z kodem.
-Komponentów nie testujemy jednostkowo; od tego jest `npm run check:browser`,
-który przechodzi całą ścieżkę w prawdziwym Chrome przez CDP.
+Vitest dla `domain/` — pisane razem z kodem. Komponentów nie testujemy jednostkowo;
+od tego jest przejście przez aplikację w przeglądarce.
 
 ```bash
-npm run test:domain    # sama domena, ~0,7 s
-npm run test:run       # cały zestaw jednostkowy
-npm run check:browser  # end-to-end w przeglądarce
+npm run test:run   # cały zestaw jednostkowy, ~2 s
+npm run build      # kompilacja produkcyjna
+npm start          # ng serve
 ```
 
-Po każdej zmianie w `game/` albo `ui/` uruchom `check:browser` — pętla gry
-i persystencja nie mają innego zabezpieczenia.
-
-### Dobór pytań — dwie rzeczy, bez których to nie działa
-
-Zestaw roboczy krąży niezależnie od kolejki Leitnera. Poprawna odpowiedź wysyła
-działanie do pudełka 2, czyli o dziesięć minut, a sesja trwa kilka minut — bez
-zestawu żadne działanie nie zrobiłoby serii dwóch trafień i nigdy nie awansowało.
-
-Karencja pilnuje, żeby pytanie nie wróciło przed upływem kilku innych. Sam zakaz
-powtórki „dwa razy pod rząd" za mało rozrzuca pytania i sesja robi się nużąca.
-Zestaw roboczy musi być większy od karencji.
+Po każdej zmianie w `game/`, `setup/` albo `ui/` przejdź ścieżkę w przeglądarce:
+ustawienia → gra → odpowiedź poprawna i błędna → podsumowanie, w obu motywach.
 
 ### Pułapka układu
 
-Wiersz szerszy od ekranu (np. zawijane chipy) rozpycha siatkę CSS, bo elementy
-siatki mają domyślnie `min-width: auto`. Ekran ma `grid-template-columns: minmax(0, 1fr)` —
-nie usuwaj tego, bo numpad wyjedzie poza widok.
+Ekran gry to siatka `auto / 1fr / auto` (statystyki, plansza, klawiatura), a `.shell`
+ma `grid-template-columns: minmax(0, 1fr)` — elementy siatki mają domyślnie
+`min-width: auto`, więc bez tego długie działanie rozpycha stronę w poziomie.
 
 ### Uwaga o npm
 

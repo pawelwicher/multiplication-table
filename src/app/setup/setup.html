@@ -1,0 +1,127 @@
+<h2 class="sr-only" #focusTarget tabindex="-1">Ustawienia ćwiczenia</h2>
+
+<div class="segments" role="group" aria-label="Tryb ćwiczenia">
+  <button
+    type="button"
+    class="segment"
+    [class.segment--on]="settings.mode() === 'custom'"
+    [attr.aria-pressed]="settings.mode() === 'custom'"
+    (click)="setMode('custom')"
+  >
+    Działania
+  </button>
+  <button
+    type="button"
+    class="segment"
+    [class.segment--on]="settings.mode() === 'tables'"
+    [attr.aria-pressed]="settings.mode() === 'tables'"
+    (click)="setMode('tables')"
+  >
+    Tabliczka mnożenia
+  </button>
+</div>
+
+@if (settings.mode() === 'custom') {
+  <fieldset class="card">
+    <legend>Zakres liczb</legend>
+    <p class="note">Wyniki i składniki nie wyjdą poza ten zakres.</p>
+    <div class="chips">
+      @for (range of ranges; track range) {
+        <label class="chip">
+          <input
+            type="radio"
+            name="range"
+            [value]="range"
+            [checked]="settings.custom().max === range"
+            (change)="setRange(range)"
+          />
+          <span>1 – {{ range }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="card">
+    <legend>Działania</legend>
+    <div class="chips chips--wide">
+      @for (operation of operations; track operation.id) {
+        <label class="chip chip--op">
+          <input
+            type="checkbox"
+            [checked]="isChecked(operation.id)"
+            (change)="toggleOperation(operation.id)"
+          />
+          <span>
+            {{ operation.label }}
+            <small>{{ operation.sample }}</small>
+          </span>
+        </label>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="card">
+    <legend>Ile składników</legend>
+    <p class="note">Tyle liczb pojawi się w jednym działaniu.</p>
+    <div class="chips">
+      @for (count of termOptions; track count) {
+        <label class="chip chip--num">
+          <input
+            type="radio"
+            name="terms"
+            [value]="count"
+            [checked]="settings.custom().terms === count"
+            (change)="setTerms(count)"
+          />
+          <span>{{ count }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+} @else {
+  <fieldset class="card">
+    <legend>Które tabliczki</legend>
+    <p class="note">Losujemy działania z zaznaczonych tabliczek, drugi czynnik od 1 do 10.</p>
+    <div class="chips">
+      @for (table of tables; track table) {
+        <label class="chip chip--num">
+          <input
+            type="checkbox"
+            [checked]="isTableChecked(table)"
+            (change)="settings.toggleTable(table)"
+          />
+          <span>{{ table }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+
+  <fieldset class="card">
+    <legend>Dodatki</legend>
+    <div class="chips chips--wide">
+      <label class="chip chip--op">
+        <input
+          type="checkbox"
+          [checked]="settings.tables().withDivision"
+          (change)="settings.toggleTableDivision()"
+        />
+        <span>
+          Dzielenie
+          <small>56 ÷ 7</small>
+        </span>
+      </label>
+    </div>
+  </fieldset>
+}
+
+<p class="hint" role="status">{{ hint() }}</p>
+
+<button type="button" class="start" [disabled]="!settings.canStart()" (click)="start.emit()">
+  Zaczynamy
+</button>
+
+@if (settings.best() > 0) {
+  <p class="best">
+    Najlepszy wynik: <strong>{{ settings.best() }}</strong> pkt
+  </p>
+}
