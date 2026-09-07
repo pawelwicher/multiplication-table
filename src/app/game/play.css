@@ -77,6 +77,8 @@
   display: grid;
   align-content: center;
   gap: 0.5rem;
+  /* Plansza dostaje własny oddech nad i pod sobą, poza siatką ekranu. */
+  margin: 0.7rem 0;
   padding: 1.2rem 1rem;
   text-align: center;
   transition:
