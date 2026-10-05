@@ -62,20 +62,22 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 ## Zasady tego projektu
 
 Trening matematyczny dla dziecka. Aplikacja statyczna, bez backendu i bez logowania.
-Dwa tryby: własne działania z wybranych kryteriów oraz tabliczka mnożenia.
+Jeden tryb: działania z wybranych kryteriów (zakres liczb od–do wpisywany ręcznie, operacje, liczba składników)
+— w grze albo na karcie do druku. Tabliczka mnożenia to po prostu mnożenie w zakresie 1–10.
 
 ### Architektura
 
 ```
 src/app/
-  domain/   czysty TypeScript — wyrażenia, generator, punktacja, tabliczka
+  domain/   czysty TypeScript — wyrażenia, generator, punktacja, karta zadań
   state/    sygnałowe stores: ustawienia, przebieg gry, motyw, localStorage
   ui/       klawiatura numeryczna
   setup/    ekran kryteriów
   game/     ekran ćwiczenia i podsumowanie
+  sheet/    karta zadań do druku (PDF przez okno drukowania przeglądarki)
 ```
 
-Dwa ekrany przełączane sygnałem w `App` — bez routera. Nie dokładaj tras ani
+Trzy ekrany przełączane sygnałem w `App` — bez routera. Nie dokładaj tras ani
 ekranów bez wyraźnej prośby.
 
 **Twarda zasada: `domain/` nie wie nic o Angularze.** Zero importów z `@angular/*`,
@@ -87,23 +89,33 @@ jako `Rng`, dzięki czemu testy są deterministyczne (`seeded()`).
 Zero zewnętrznych bibliotek runtime. Bez silnika gry, bez UI kitu, bez biblioteki
 do matematyki. RxJS tylko tam, gdzie sygnał naprawdę nie wystarczy.
 
-### Generator działań — trzy rzeczy, bez których to nie działa
+### Generator działań — rzeczy, bez których to nie działa
 
-**Dzielenie musi wychodzić całkowicie.** W łańcuchu mnożeń i dzieleń pierwszy
-czynnik jest wielokrotnością iloczynu wszystkich dzielników (`buildProduct`).
-Każdy wynik pośredni jest wtedy całkowity — bez tej sztuczki co drugie działanie
-sypałoby ułamkami.
+**Zakres dotyczy liczb, nie wyniku.** Każda liczba w działaniu jest z `min..max` (domyślnie 2–10).
+Wynik (także pośredni) jest całkowity, nieujemny i najwyżej `MAX_RESULT` (9999 —
+tyle mieści klawiatura). Przy wielu składnikach i małym zakresie część liczb
+musi wyjść 1 — `2 × 1 × 4 …` to matematyka, nie błąd. Gdy dolna granica jest wysoka,
+niektóre kryteria są niewykonalne (5 mnożeń liczb od 20); `canGenerate` to wykrywa
+i ekran ustawień blokuje start z podpowiedzią.
 
-**Wyniki pośrednie zostają w zakresie.** Suma składników jest budowana od lewej
-i po każdym kroku sprawdzamy, czy mieścimy się w `0..max`. Dlatego generator
-losuje z ponawianiem (`MAX_ATTEMPTS`), zamiast liczyć wynik po fakcie.
+**Dzielenie jest odwrotnością mnożenia.** Dzielnik i iloraz są z zakresu,
+dzielna z nich wynika (`56 ÷ 7` przy zakresie 1–10). Dzielenia na początku
+łańcucha wchodzą w pierwszą liczbę (`buildProduct`), dalsze dobierają dzielnik
+spośród dzielników bieżącego wyniku — każdy wynik pośredni jest całkowity.
+
+**Suma budowana od lewej, z ponawianiem.** Po każdym kroku sprawdzamy, czy wynik
+jest w `0..MAX_RESULT`; przy samym odejmowaniu zostawiamy miejsce na kolejne
+odjemniki. Generator losuje z ponawianiem (`MAX_ATTEMPTS`), a `fallback` to
+ostateczność — test w `generator.spec.ts` pilnuje, że dla żadnej kombinacji
+kryteriów nie wychodzi zła liczba składników ani niewybrane działanie.
 
 **Nawias musi mieć gdzie zamieszkać.** `splitTerms` rezerwuje składnik o trzech
 liczbach, gdy nawiasy są włączone — bez rezerwacji wypadałyby na tyle rzadko,
 że dziecko by ich nie zobaczyło. Przy samym dodawaniu i odejmowaniu nawias ma
 sens tylko po minusie: `10 − (3 + 2)`.
 
-**Niewiadoma musi mieć jedno rozwiązanie.** `solvesUniquely` skanuje cały zakres
+**Niewiadoma musi mieć jedno rozwiązanie.** x zastępuje liczbę z zakresu (nigdy dzielną),
+a `solvesUniquely` skanuje cały zakres
 przed pokazaniem zadania; inaczej dziecko mogłoby podać poprawną odpowiedź
 i dostać czerwony ekran.
 

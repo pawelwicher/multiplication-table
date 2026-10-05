@@ -3,23 +3,18 @@ import {
   ARITHMETIC,
   DEFAULT_SETTINGS,
   OperationId,
-  Range,
   Settings,
   clampTerms,
   isValid,
   sanitize,
 } from '../domain/settings';
-import { DEFAULT_TABLE_SETTINGS, TableSettings, sanitizeTables } from '../domain/tables';
+import { canGenerate } from '../domain/generator';
 import { readJson, writeJson } from './storage';
-
-export type Mode = 'custom' | 'tables';
 
 const KEY = 'math.settings';
 
 interface Stored {
-  mode: Mode;
   custom: Settings;
-  tables: TableSettings;
   best: number;
 }
 
@@ -27,33 +22,22 @@ interface Stored {
 export class SettingsStore {
   private readonly stored = load();
 
-  readonly mode = signal<Mode>(this.stored.mode);
   readonly custom = signal<Settings>(this.stored.custom);
-  readonly tables = signal<TableSettings>(this.stored.tables);
   /** Najlepszy wynik punktowy sesji. */
   readonly best = signal(this.stored.best);
 
-  readonly canStart = computed(() =>
-    this.mode() === 'custom' ? isValid(this.custom()) : this.tables().tables.length > 0,
-  );
+  /** Czy z tych kryteriów da się w ogóle ułożyć działanie (np. 5 mnożeń liczb od 20 — nie). */
+  readonly feasible = computed(() => canGenerate(this.custom()));
+  readonly canStart = computed(() => isValid(this.custom()) && this.feasible());
 
   constructor() {
     effect(() => {
-      writeJson(KEY, {
-        mode: this.mode(),
-        custom: this.custom(),
-        tables: this.tables(),
-        best: this.best(),
-      } satisfies Stored);
+      writeJson(KEY, { custom: this.custom(), best: this.best() } satisfies Stored);
     });
   }
 
-  setMode(mode: Mode): void {
-    this.mode.set(mode);
-  }
-
-  setRange(max: Range): void {
-    this.custom.update((s) => ({ ...s, max }));
+  setRange(min: number, max: number): void {
+    this.custom.update((s) => (s.min === min && s.max === max ? s : { ...s, min, max }));
   }
 
   setTerms(terms: number): void {
@@ -78,31 +62,25 @@ export class SettingsStore {
     return this.custom().operations.some((op) => ARITHMETIC.includes(op));
   }
 
-  toggleTable(table: number): void {
-    this.tables.update((t) => ({
-      ...t,
-      tables: t.tables.includes(table)
-        ? t.tables.filter((n) => n !== table)
-        : [...t.tables, table].sort((a, b) => a - b),
-    }));
-  }
-
-  toggleTableDivision(): void {
-    this.tables.update((t) => ({ ...t, withDivision: !t.withDivision }));
-  }
-
   recordBest(points: number): void {
     if (points > this.best()) this.best.set(points);
   }
 }
 
+/** Dawny tryb tabliczki mnożenia to teraz mnożenie (i dzielenie) dwóch liczb od 1 do 10. */
+interface LegacyTables {
+  mode?: unknown;
+  tables?: { withDivision?: unknown };
+}
+
 function load(): Stored {
   const raw = readJson(KEY);
-  const data = (typeof raw === 'object' && raw !== null ? raw : {}) as Partial<Stored>;
-  return {
-    mode: data.mode === 'tables' ? 'tables' : 'custom',
-    custom: raw === null ? DEFAULT_SETTINGS : sanitize(data.custom),
-    tables: raw === null ? DEFAULT_TABLE_SETTINGS : sanitizeTables(data.tables),
-    best: typeof data.best === 'number' && data.best >= 0 ? Math.round(data.best) : 0,
-  };
+  const data = (typeof raw === 'object' && raw !== null ? raw : {}) as Partial<Stored> &
+    LegacyTables;
+  const best = typeof data.best === 'number' && data.best >= 0 ? Math.round(data.best) : 0;
+  if (data.mode === 'tables') {
+    const operations: OperationId[] = data.tables?.withDivision === true ? ['mul', 'div'] : ['mul'];
+    return { custom: { min: 1, max: 10, operations, terms: 2 }, best };
+  }
+  return { custom: raw === null ? DEFAULT_SETTINGS : sanitize(data.custom), best };
 }

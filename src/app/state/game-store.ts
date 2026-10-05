@@ -1,13 +1,12 @@
 import { Service, computed, inject, signal } from '@angular/core';
-import { Problem, generateProblem } from '../domain/generator';
+import { MAX_RESULT, Problem, generateProblem } from '../domain/generator';
 import { Rng } from '../domain/random';
 import { awardFor, starsFor, streakMultiplier } from '../domain/scoring';
-import { generateTableProblem } from '../domain/tables';
 import { SettingsStore } from './settings-store';
 
 export type Phase = 'ask' | 'reveal';
 
-const MAX_DIGITS = 4;
+const MAX_DIGITS = String(MAX_RESULT).length;
 
 @Service()
 export class GameStore {
@@ -98,8 +97,6 @@ export class GameStore {
   }
 
   private draw(): Problem {
-    return this.settings.mode() === 'tables'
-      ? generateTableProblem(this.settings.tables(), this.rng)
-      : generateProblem(this.settings.custom(), this.rng);
+    return generateProblem(this.settings.custom(), this.rng);
   }
 }

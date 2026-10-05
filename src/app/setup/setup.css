@@ -4,35 +4,6 @@
   align-content: start;
 }
 
-.segments {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.35rem;
-  padding: 0.35rem;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.segment {
-  min-height: 2.9rem;
-  padding: 0 0.5rem;
-  font: inherit;
-  font-weight: 600;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: calc(var(--radius) - 0.35rem);
-  cursor: pointer;
-}
-
-.segment--on {
-  color: var(--text);
-  background: var(--surface);
-  border-color: var(--border);
-  box-shadow: var(--shadow-soft);
-}
-
 .card {
   margin: 0;
   padding: 0.9rem 1rem 1.1rem;
@@ -149,7 +120,28 @@ legend {
   cursor: pointer;
 }
 
-.start:disabled {
+.actions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sheet {
+  min-height: 3rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.sheet:hover:enabled {
+  background: var(--hover);
+}
+
+.start:disabled,
+.sheet:disabled {
   color: var(--muted);
   background: var(--surface-2);
   border-color: var(--border);
@@ -161,4 +153,47 @@ legend {
   text-align: center;
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+.range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+}
+
+.bound {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bound label {
+  font-weight: 600;
+}
+
+.bound input {
+  width: 6.5rem;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.7rem;
+  font: inherit;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px);
+}
+
+.bound input[aria-invalid='true'] {
+  border-color: var(--bad);
+}
+
+.error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--bad);
+}
+
+.error:empty {
+  display: none;
 }

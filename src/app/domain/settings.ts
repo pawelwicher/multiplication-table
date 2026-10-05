@@ -1,7 +1,12 @@
-/** Kryteria wyboru działań. Czysty TypeScript. */
+/** Kryteria wyboru działań. Czysty TypeScript.
+ *
+ * Zakres `min..max` dotyczy każdej liczby w działaniu, nie wyniku. Wyjątek to dzielna:
+ * wynika z dzielnika i ilorazu, które są z zakresu (56 ÷ 7 przy zakresie 2–10).
+ */
 
-export const RANGES = [20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
-export type Range = (typeof RANGES)[number];
+/** Granice, w jakich można wpisać zakres. */
+export const RANGE_FLOOR = 1;
+export const RANGE_LIMIT = 1000;
 
 export const MIN_TERMS = 2;
 export const MAX_TERMS = 10;
@@ -19,21 +24,23 @@ export const ARITHMETIC: readonly OperationId[] = ['add', 'sub', 'mul', 'div'];
 
 export const OPERATIONS: readonly OperationInfo[] = [
   { id: 'add', label: 'Dodawanie', sample: '2 + 3' },
-  { id: 'sub', label: 'Odejmowanie', sample: '7 \u2212 4' },
-  { id: 'mul', label: 'Mnożenie', sample: '3 \u00d7 4' },
-  { id: 'div', label: 'Dzielenie', sample: '12 \u00f7 3' },
-  { id: 'paren', label: 'Nawiasy', sample: '(2 + 3) \u00d7 4' },
+  { id: 'sub', label: 'Odejmowanie', sample: '7 − 4' },
+  { id: 'mul', label: 'Mnożenie', sample: '3 × 4' },
+  { id: 'div', label: 'Dzielenie', sample: '12 ÷ 3' },
+  { id: 'paren', label: 'Nawiasy', sample: '(2 + 3) × 4' },
   { id: 'unknown', label: 'Niewiadoma', sample: 'x + 5 = 9' },
 ];
 
 export interface Settings {
-  readonly max: Range;
+  readonly min: number;
+  readonly max: number;
   readonly operations: readonly OperationId[];
   readonly terms: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  max: 20,
+  min: 2,
+  max: 10,
   operations: ['add', 'sub'],
   terms: 3,
 };
@@ -43,20 +50,40 @@ export function clampTerms(terms: number): number {
   return Math.min(MAX_TERMS, Math.max(MIN_TERMS, Math.round(terms)));
 }
 
+/** Liczba całkowita w granicach, jakie można wpisać. */
+export function isRangeBound(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= RANGE_FLOOR &&
+    value <= RANGE_LIMIT
+  );
+}
+
 export function isValid(settings: Settings): boolean {
-  return settings.operations.some((op) => ARITHMETIC.includes(op));
+  return (
+    isRangeBound(settings.min) &&
+    isRangeBound(settings.max) &&
+    settings.min <= settings.max &&
+    settings.operations.some((op) => ARITHMETIC.includes(op))
+  );
 }
 
 /** Naprawia ustawienia z pamięci przeglądarki — nie ufamy temu, co tam leży. */
 export function sanitize(value: unknown): Settings {
   if (typeof value !== 'object' || value === null) return DEFAULT_SETTINGS;
   const raw = value as Partial<Record<keyof Settings, unknown>>;
-  const max = RANGES.find((r) => r === raw.max) ?? DEFAULT_SETTINGS.max;
+  // Dawne ustawienia miały tylko górną granicę i zaczynały od 1.
+  const legacy = raw.min === undefined && isRangeBound(raw.max);
+  const range =
+    isRangeBound(raw.max) && (legacy || (isRangeBound(raw.min) && raw.min <= raw.max))
+      ? { min: legacy ? 1 : (raw.min as number), max: raw.max }
+      : { min: DEFAULT_SETTINGS.min, max: DEFAULT_SETTINGS.max };
   const known = OPERATIONS.map((o) => o.id);
   const operations = Array.isArray(raw.operations)
     ? known.filter((id) => (raw.operations as unknown[]).includes(id))
     : DEFAULT_SETTINGS.operations;
   const terms = clampTerms(typeof raw.terms === 'number' ? raw.terms : DEFAULT_SETTINGS.terms);
-  const settings: Settings = { max, operations, terms };
+  const settings: Settings = { ...range, operations, terms };
   return isValid(settings) ? settings : { ...settings, operations: DEFAULT_SETTINGS.operations };
 }

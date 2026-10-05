@@ -4,18 +4,30 @@ import { starsFor, streakMultiplier } from './scoring';
 
 describe('sanitize', () => {
   it('przyjmuje poprawne ustawienia', () => {
-    const settings = { max: 50, operations: ['mul', 'div'], terms: 4 };
+    const settings = { min: 1, max: 50, operations: ['mul', 'div'], terms: 4 };
     expect(sanitize(settings)).toEqual(settings);
   });
 
   it('odrzuca zakres i operacje spoza listy', () => {
-    const result = sanitize({ max: 37, operations: ['add', 'pierwiastek'], terms: 3 });
+    const result = sanitize({ min: 1, max: 5000, operations: ['add', 'pierwiastek'], terms: 3 });
     expect(result.max).toBe(DEFAULT_SETTINGS.max);
     expect(result.operations).toEqual(['add']);
   });
 
+  it('odrzuca odwrócony i ułamkowy zakres', () => {
+    const reversed = sanitize({ min: 9, max: 3, operations: ['add'], terms: 3 });
+    expect([reversed.min, reversed.max]).toEqual([DEFAULT_SETTINGS.min, DEFAULT_SETTINGS.max]);
+    const fractional = sanitize({ min: 1.5, max: 10, operations: ['add'], terms: 3 });
+    expect(fractional.min).toBe(DEFAULT_SETTINGS.min);
+  });
+
+  it('dawne ustawienia bez dolnej granicy zaczynają od 1', () => {
+    const result = sanitize({ max: 50, operations: ['mul'], terms: 2 });
+    expect([result.min, result.max]).toEqual([1, 50]);
+  });
+
   it('wraca do domyślnych, gdy nie wybrano żadnego działania', () => {
-    const result = sanitize({ max: 20, operations: ['paren', 'unknown'], terms: 3 });
+    const result = sanitize({ min: 1, max: 20, operations: ['paren', 'unknown'], terms: 3 });
     expect(result.operations).toEqual(DEFAULT_SETTINGS.operations);
   });
 
@@ -26,8 +38,14 @@ describe('sanitize', () => {
   });
 
   it('wymaga działania arytmetycznego', () => {
-    expect(isValid({ max: 20, operations: ['unknown'], terms: 3 })).toBe(false);
-    expect(isValid({ max: 20, operations: ['unknown', 'add'], terms: 3 })).toBe(true);
+    expect(isValid({ min: 1, max: 20, operations: ['unknown'], terms: 3 })).toBe(false);
+    expect(isValid({ min: 1, max: 20, operations: ['unknown', 'add'], terms: 3 })).toBe(true);
+  });
+
+  it('wymaga zakresu od mniejszej do większej liczby', () => {
+    expect(isValid({ min: 7, max: 7, operations: ['add'], terms: 3 })).toBe(true);
+    expect(isValid({ min: 8, max: 7, operations: ['add'], terms: 3 })).toBe(false);
+    expect(isValid({ min: 0, max: 7, operations: ['add'], terms: 3 })).toBe(false);
   });
 });
 

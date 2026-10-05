@@ -55,3 +55,19 @@ app-play {
   display: block;
   min-height: 100%;
 }
+
+/* Na wydruku zostaje sama kartka. */
+@media print {
+  :host,
+  .shell,
+  main {
+    display: block;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .top {
+    display: none;
+  }
+}

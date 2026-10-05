@@ -1,13 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Play } from './game/play';
 import { Setup } from './setup/setup';
+import { Sheet } from './sheet/sheet';
 import { ThemeStore } from './state/theme-store';
 
-type View = 'setup' | 'play';
+type View = 'setup' | 'play' | 'sheet';
 
 @Component({
   selector: 'app-root',
-  imports: [Setup, Play],
+  imports: [Setup, Play, Sheet],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -22,6 +23,10 @@ export class App {
 
   protected play(): void {
     this.view.set('play');
+  }
+
+  protected sheet(): void {
+    this.view.set('sheet');
   }
 
   protected setup(): void {

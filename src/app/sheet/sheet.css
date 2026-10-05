@@ -1,0 +1,295 @@
+:host {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.toolbar {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.link {
+  justify-self: start;
+  min-height: 2.75rem;
+  padding: 0 0.2rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.group {
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.chips {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.2rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.8rem;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chip:has(:checked) {
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.chip:has(:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.check input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.primary,
+.secondary {
+  min-height: 3rem;
+  padding: 0 0.6rem;
+  font-weight: 650;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.primary {
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 1px solid transparent;
+}
+
+.secondary {
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.secondary:hover {
+  background: var(--hover);
+}
+
+.note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Podgląd kartki */
+
+.paper {
+  padding: 1.2rem 1.1rem 1.4rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+h2:focus {
+  outline: none;
+}
+
+.subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.5rem;
+  margin-top: 0.9rem;
+}
+
+.fields > span {
+  display: flex;
+  flex: 1 1 10rem;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.line {
+  display: inline-block;
+  flex: 1;
+  min-width: 2.5rem;
+  height: 1.1em;
+  border-bottom: 1px solid currentColor;
+}
+
+.line--short {
+  flex: none;
+  width: 2.5rem;
+}
+
+.tasks,
+.key {
+  display: grid;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tasks {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1.1rem 1.6rem;
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tasks--wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.task {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.4rem;
+  break-inside: avoid;
+}
+
+.num {
+  min-width: 1.8em;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+.expr {
+  white-space: nowrap;
+}
+
+/* Odstęp, żeby „… = 8   x = ___” nie zlało się w jedno. */
+.ask--x {
+  margin-left: 1.2em;
+}
+
+.blank {
+  flex: 1;
+  min-width: 3.5rem;
+  max-width: 6rem;
+  height: 1.2em;
+  border-bottom: 1px solid currentColor;
+}
+
+.score {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: 0.4rem;
+  margin: 1.6rem 0 0;
+  font-weight: 600;
+}
+
+.key {
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: 0.4rem 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Wydruk: tylko kartka, czarno na białym, odpowiedzi od nowej strony. */
+@media print {
+  :host {
+    display: block;
+  }
+
+  .toolbar {
+    display: none;
+  }
+
+  .paper {
+    padding: 0;
+    color: #000;
+    background: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .subtitle,
+  .num {
+    color: #333;
+  }
+
+  .tasks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7mm 12mm;
+    font-size: 15pt;
+  }
+
+  .tasks--wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .blank {
+    max-width: 30mm;
+  }
+
+  .key {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .answers {
+    break-before: page;
+  }
+}

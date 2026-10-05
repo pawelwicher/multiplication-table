@@ -107,6 +107,21 @@ fieldset {
   }
 }
 
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+/* Wydruk zawsze jasny, niezależnie od motywu. */
+@media print {
+  html,
+  body {
+    height: auto;
+    color: #000;
+    background: #fff;
+  }
+}
+
 /* Widoczne tylko dla czytników ekranu. */
 .sr-only {
   position: absolute;

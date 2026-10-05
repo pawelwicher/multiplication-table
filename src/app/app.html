@@ -7,10 +7,16 @@
   </header>
 
   <main>
-    @if (view() === 'play') {
-      <app-play (quit)="setup()" />
-    } @else {
-      <app-setup [focusOnEnter]="cameBack()" (start)="play()" />
+    @switch (view()) {
+      @case ('play') {
+        <app-play (quit)="setup()" />
+      }
+      @case ('sheet') {
+        <app-sheet (back)="setup()" />
+      }
+      @default {
+        <app-setup [focusOnEnter]="cameBack()" (start)="play()" (sheet)="sheet()" />
+      }
     }
   </main>
 </div>

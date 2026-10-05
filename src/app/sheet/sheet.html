@@ -1,0 +1,80 @@
+<div class="toolbar">
+  <button type="button" class="link" (click)="back.emit()">← Ustawienia</button>
+
+  <fieldset class="group">
+    <legend>Ile zadań</legend>
+    <div class="chips">
+      @for (count of sizes; track count) {
+        <label class="chip">
+          <input
+            type="radio"
+            name="sheet-size"
+            [value]="count"
+            [checked]="size() === count"
+            (change)="size.set(count)"
+          />
+          <span>{{ count }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+
+  <label class="check">
+    <input type="checkbox" [checked]="withAnswers()" (change)="toggleAnswers()" />
+    Odpowiedzi na osobnej stronie
+  </label>
+
+  <div class="actions">
+    <button type="button" class="secondary" (click)="reshuffle()">Nowe zadania</button>
+    <button type="button" class="primary" (click)="print()">Drukuj / zapisz PDF</button>
+  </div>
+  <p class="note">Żeby pobrać plik, w oknie drukowania wybierz „Zapisz jako PDF”.</p>
+</div>
+
+<article class="paper" aria-labelledby="sheet-title">
+  <header>
+    <h2 id="sheet-title" #heading tabindex="-1">Karta zadań</h2>
+    <p class="subtitle">{{ subtitle() }}</p>
+    <div class="fields">
+      <span>Imię: <span class="line" aria-hidden="true"></span></span>
+      <span>Data: <span class="line" aria-hidden="true"></span></span>
+    </div>
+  </header>
+
+  <ol class="tasks" role="list" [class.tasks--wide]="wide()">
+    @for (problem of problems(); track $index) {
+      <li class="task">
+        <span class="num">{{ $index + 1 }}.</span>
+        <span class="expr">{{ problem.display }}</span>
+        @if (problem.asks === 'x') {
+          <span class="ask ask--x">x =</span>
+        } @else {
+          <span class="ask">=</span>
+        }
+        <span class="blank" aria-hidden="true"></span>
+      </li>
+    }
+  </ol>
+
+  <p class="score">
+    Wynik: <span class="line line--short" aria-hidden="true"></span> / {{ problems().length }}
+  </p>
+</article>
+
+@if (withAnswers()) {
+  <section class="paper answers" aria-labelledby="answers-title">
+    <h2 id="answers-title">Odpowiedzi</h2>
+    <p class="subtitle">{{ subtitle() }}</p>
+    <ol class="key" role="list">
+      @for (problem of problems(); track $index) {
+        <li>
+          <span class="num">{{ $index + 1 }}.</span>
+          @if (problem.asks === 'x') {
+            x =
+          }
+          {{ problem.answer }}
+        </li>
+      }
+    </ol>
+  </section>
+}
